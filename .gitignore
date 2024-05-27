@@ -3,6 +3,8 @@ dataset
 dataset-zip
 
 .idea
+hrv-middle-data
+middle-files
 
 # -- from https://github.com/github/gitignore/blob/main/Python.gitignore --
 
