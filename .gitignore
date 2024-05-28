@@ -6,6 +6,7 @@ dataset-zip
 hrv-middle-data
 middle-files
 plots
+eda-middle-data
 
 # -- from https://github.com/github/gitignore/blob/main/Python.gitignore --
 

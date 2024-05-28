@@ -1,9 +1,10 @@
 import os
 from multiprocessing import Pool
 
-import neurokit2
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from scipy import stats
 from neurokit2 import eda_process
 
 plt.style.use('ggplot')
@@ -19,7 +20,10 @@ def eda_extraction(p_index):
     df_eda = pd.read_csv(f'dataset/{participant_key}/EDA.csv')
 
     # transform from ohm to microsiemens (Note: the original paper said it is kilo-ohm but seems wrong...)
-    df_eda['conductance'] = 1 / df_eda['resistance']
+    df_eda['conductance'] = 1 / df_eda['resistance'] * 1000
+
+    # potential: transform to z-score?
+    # df_eda['conductance'] = stats.zscore(df_eda['conductance'])
 
     # filter out use time that is less than 1 minute
     loc_time = df_time.loc[df_time.time_difference > 60 * 1000]
@@ -33,17 +37,14 @@ def eda_extraction(p_index):
 
         if ts_target > 0 and ts_after > 0:
             df_analyse = df_eda.loc[(df_eda['timestamp'] >= ts_target) & (df_eda['timestamp'] <= ts_after)]
-            if (len(df_analyse)) < 15:
-                continue
 
-            # df_analyse = df_analyse.copy()
-            # df_analyse['datetime'] = pd.to_datetime(df_analyse['timestamp'], unit='ms', origin='unix')
-            # df_analyse.resample('20ms', on='datetime')
+            # data is too short to get meaningful result
+            if (len(df_analyse)) < 15 * 2:
+                continue
 
             eda_res, info = eda_process(df_analyse['conductance'], 5, kwargs_phasic='SparsEDA')
 
-            if info['SCR_Amplitude'].max():
-                res.loc[len(res)] = [foreground_time, info['SCR_Amplitude'].max()]
+            res.loc[len(res)] = [foreground_time, np.nanmax(info['SCR_Amplitude'])]
 
     res.to_csv(eda_output_path + participant_key + '_eda_result.csv', index=False)
     print(participant_key + ' done')
@@ -71,5 +72,5 @@ def process_eda_async():
 
 
 if __name__ == '__main__':
-    process_eda_async()
-    # eda_extraction(2)
+    # process_eda_async()
+    eda_extraction(8)
