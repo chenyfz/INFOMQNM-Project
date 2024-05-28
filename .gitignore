@@ -5,6 +5,7 @@ dataset-zip
 .idea
 hrv-middle-data
 middle-files
+plots
 
 # -- from https://github.com/github/gitignore/blob/main/Python.gitignore --
 

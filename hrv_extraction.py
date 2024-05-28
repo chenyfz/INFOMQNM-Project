@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 plt.style.use('ggplot')
 
 time_middle_file_path = 'middle-files/'
-hrv_output_path = 'hrv-middle-data/'
+hrv_output_path = 'hrv-middle-data-test/'
 
 
 def hrv_extraction(p_index):
