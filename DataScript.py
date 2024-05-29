@@ -3,6 +3,14 @@ import pandas as pd
 
 output_folder = 'middle-files/'
 
+# function to calculate average confidence levels
+def calculate_average_confidence(start_time, end_time, activity_df):
+    relevant_activities = activity_df[(activity_df['timestamp'] >= start_time) & (activity_df['timestamp'] <= end_time)]
+    if not relevant_activities.empty:
+        average_confidences = relevant_activities.mean(numeric_only=True).round(4)
+        return average_confidences.to_dict()
+    else:
+        return {col: 0.0 for col in activity_df.columns if col != 'timestamp'}
 
 def process_time(p_index):
     participant_key = 'P' + str(p_index + 1).zfill(2)
@@ -51,7 +59,7 @@ def process_time(p_index):
         ]
 
     final_filtered_data = final_filtered_data.reset_index(drop=True)
-    final_filtered_data.to_csv(output_folder + participant_key + '_test_01.csv', index=False)
+    # final_filtered_data.to_csv(output_folder + participant_key + '_test_01.csv', index=False)
 
     # group events to specific time frame
     time_differences = []
@@ -92,10 +100,78 @@ def process_time(p_index):
 
     # create a new df
     time_diff_df = pd.DataFrame(time_differences)
-    time_diff_df.to_csv(output_folder + participant_key + '_foreground_background_differences.csv', index=False)
+    time_diff_df = time_diff_df.sort_values(by='foreground_time').reset_index(drop=True)
+
+    result = []
+
+    activity_df = pd.read_csv(f'dataset/{participant_key}/ActivityEvent.csv')
+
+    # Calculate initial average confidence levels for each app usage event
+    confidence_columns = ['confidenceStill', 'confidenceUnknown', 'confidenceOnFoot', 'confidenceWalking', 'confidenceInVehicle', 'confidenceOnBicycle', 'confidenceRunning', 'confidenceTilting']
+    for col in confidence_columns:
+        time_diff_df[col] = 0.0
+
+    for index, row in time_diff_df.iterrows():
+        average_confidences = calculate_average_confidence(row['foreground_time'], row['background_time'], activity_df)
+        for col in confidence_columns:
+            time_diff_df.at[index, col] = round(average_confidences.get(col, 0.0), 4)
+
+    # iterate over the app usage events dataframe to combine app usage event and find appropriate activity time
+    i = 0
+    while i < len(time_diff_df):
+        # get current row details
+        current_row = time_diff_df.iloc[i]
+        current_app = current_row['packageName']
+        unlock_time = current_row['UNLOCK_timestamp']
+        off_time = current_row['OFF_timestamp']
+        start_time = current_row['foreground_time']
+        end_time = current_row['background_time']
+        
+        # the idea is to get the average confidence level based on the existing confidences
+        # create a dictionary to store the sums of each type of confidences and the count
+        cumulative_confidences = {col: current_row[col] for col in confidence_columns}
+        count = 1 
+        
+        # check consecutive rows for the same app and within the same UNLOCK-OFF window
+        j = i + 1
+        while j < len(time_diff_df):
+            next_row = time_diff_df.iloc[j]
+            
+            # break the loop in case of different app or different time window
+            if (next_row['packageName'] != current_app or 
+                next_row['UNLOCK_timestamp'] != unlock_time or 
+                next_row['OFF_timestamp'] != off_time):
+                break
+            
+            # the max time difference is set to 120000 milliseconds (2 minutes) to combine app events
+            if next_row['foreground_time'] - end_time < 120000:
+                end_time = next_row['background_time']
+                for col in confidence_columns:
+                    cumulative_confidences[col] += next_row[col]
+                count += 1
+                j += 1
+            else:
+                break
+        
+        average_confidences_combined = {col: round(cumulative_confidences[col] / count, 4) for col in confidence_columns}
+        combined_event = {
+            'name': current_row['name'],
+            'packageName': current_app,
+            'foreground_time': start_time,
+            'background_time': end_time,
+            'time_difference': end_time - start_time,
+            'UNLOCK_timestamp': unlock_time,
+            'OFF_timestamp': off_time
+        }
+        combined_event.update(average_confidences_combined)
+        result.append(combined_event)
+        
+        i = j
+
+    result_df = pd.DataFrame(result)
+    result_df.to_csv(output_folder + participant_key + '_app_usage_events_with_confidences.csv', index=False)
 
     print(participant_key + ' done')
-
 
 def process_time_async():
     p = Pool()
