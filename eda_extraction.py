@@ -18,12 +18,13 @@ def eda_extraction(p_index):
 
     df_time = pd.read_csv(f'{time_middle_file_path}{participant_key}_foreground_background_differences.csv')
     df_eda = pd.read_csv(f'dataset/{participant_key}/EDA.csv')
+    df_eda = df_eda.loc[df_eda['resistance'] != 0]
 
     # transform from ohm to microsiemens (Note: the original paper said it is kilo-ohm but seems wrong...)
     df_eda['conductance'] = 1 / df_eda['resistance'] * 1000
 
     # potential: transform to z-score?
-    # df_eda['conductance'] = stats.zscore(df_eda['conductance'])
+    df_eda['conductance'] = stats.zscore(df_eda['conductance'])
 
     # filter out use time that is less than 1 minute
     loc_time = df_time.loc[df_time.time_difference > 60 * 1000]
@@ -72,5 +73,5 @@ def process_eda_async():
 
 
 if __name__ == '__main__':
-    # process_eda_async()
-    eda_extraction(8)
+    process_eda_async()
+    # eda_extraction(8)
