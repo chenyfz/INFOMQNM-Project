@@ -121,10 +121,10 @@ def process_time(p_index):
         time_diff_df[col] = 0.0
 
     for index, row in time_diff_df.iterrows():
-        average_confidences = calculate_average_confidence(row['foreground_time'], row['background_time'], activity_df)
+        # modify the below line to only consider a set time before and after foreground time
+        average_confidences = calculate_average_confidence(row['foreground_time']-120000, row['foreground_time']+12000, activity_df)
         for col in confidence_columns:
             time_diff_df.at[index, col] = round(average_confidences.get(col, 0.0), 4)
-        print
     # iterate over the app usage events dataframe to combine app usage event and find appropriate activity time
     i = 0
     while i < len(time_diff_df):
@@ -201,7 +201,7 @@ def process_time(p_index):
 
 def process_time_async():
     p = Pool()
-    for i in range(80):
+    for i in range(1):
         p.apply_async(process_time, args=(i,))
     p.close()
     p.join()
