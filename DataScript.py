@@ -8,6 +8,15 @@ def calculate_average_confidence(start_time, end_time, activity_df):
     relevant_activities = activity_df[(activity_df['timestamp'] >= start_time) & (activity_df['timestamp'] <= end_time)]
     if not relevant_activities.empty:
         average_confidences = relevant_activities.mean(numeric_only=True).round(4)
+        # print(sum(average_confidences.to_dict().values()))
+        # confidence_sum = sum(current_row[col] for col in confidence_columns)
+        # result = average_confidences.to_dict()
+        # sum = 0
+        # for key in result:
+        #     if key != 'timestamp':
+        #         print('key: ', key, '-', result[key])
+        #         sum += result[key]
+        # print('sum: ', sum)
         return average_confidences.to_dict()
     else:
         return {col: 0.0 for col in activity_df.columns if col != 'timestamp'}
@@ -115,7 +124,7 @@ def process_time(p_index):
         average_confidences = calculate_average_confidence(row['foreground_time'], row['background_time'], activity_df)
         for col in confidence_columns:
             time_diff_df.at[index, col] = round(average_confidences.get(col, 0.0), 4)
-
+        print
     # iterate over the app usage events dataframe to combine app usage event and find appropriate activity time
     i = 0
     while i < len(time_diff_df):
@@ -126,6 +135,14 @@ def process_time(p_index):
         off_time = current_row['OFF_timestamp']
         start_time = current_row['foreground_time']
         end_time = current_row['background_time']
+
+        # check for sum of confidences; skip current row if == 0.0
+        confidence_sum = sum(current_row[col] for col in confidence_columns)
+        #print('current row ', i, ' - ', confidence_sum)
+        if confidence_sum == 0.0:
+            #print('skip row ', i)
+            i += 1
+            continue
         
         # the idea is to get the average confidence level based on the existing confidences
         # create a dictionary to store the sums of each type of confidences and the count
@@ -142,6 +159,14 @@ def process_time(p_index):
                 next_row['UNLOCK_timestamp'] != unlock_time or 
                 next_row['OFF_timestamp'] != off_time):
                 break
+
+            # check for sum of confidences; skip current row if == 0.0
+            confidence_sum = sum(next_row[col] for col in confidence_columns)
+            #print('current row ', j, ' - ', confidence_sum)
+            if confidence_sum == 0.0:
+                #print('skip row ', j)
+                j += 1
+                continue
             
             # the max time difference is set to 120000 milliseconds (2 minutes) to combine app events
             if next_row['foreground_time'] - end_time < 120000:
@@ -165,7 +190,8 @@ def process_time(p_index):
         }
         combined_event.update(average_confidences_combined)
         result.append(combined_event)
-        
+        # temp = sum(current_row[col] for col in confidence_columns)
+        # print('current row ', i, ' - ', temp)
         i = j
 
     result_df = pd.DataFrame(result)
