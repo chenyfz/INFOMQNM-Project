@@ -168,8 +168,8 @@ def process_time(p_index):
                 j += 1
                 continue
             
-            # the max time difference is set to 120000 milliseconds (2 minutes) to combine app events
-            if next_row['foreground_time'] - end_time < 120000:
+            # the max time difference is set to 30000 milliseconds (30 seconds) to combine app events
+            if next_row['foreground_time'] - end_time < 30000:
                 end_time = next_row['background_time']
                 for col in confidence_columns:
                     cumulative_confidences[col] += next_row[col]
@@ -201,7 +201,7 @@ def process_time(p_index):
 
 def process_time_async():
     p = Pool()
-    for i in range(1):
+    for i in range(80):
         p.apply_async(process_time, args=(i,))
     p.close()
     p.join()

@@ -8,13 +8,13 @@ import matplotlib.pyplot as plt
 plt.style.use('ggplot')
 
 time_middle_file_path = 'middle-files/'
-hrv_output_path = 'hrv-middle-data-test/'
-
+hrv_output_path = 'hrv-middle-data/'
+test_minutes = 2
 
 def hrv_extraction(p_index):
     participant_key = 'P' + str(p_index + 1).zfill(2)
 
-    df_time = pd.read_csv(f'{time_middle_file_path}{participant_key}_foreground_background_differences.csv')
+    df_time = pd.read_csv(f'{time_middle_file_path}{participant_key}_app_usage_events_with_confidences.csv')
     df_hrv = pd.read_csv(f'dataset/{participant_key}/RRI.csv')
 
     df_analyse = pd.DataFrame()
@@ -26,14 +26,15 @@ def hrv_extraction(p_index):
     df_analyse.sort_values(by='RRI_Time_ms')
 
     # filter out use time that is less than 1 minute
-    loc_time = df_time.loc[df_time.time_difference > 60 * 1000]
+    filtered_use_time = df_time.loc[df_time.time_difference > test_minutes * 60 * 1000]
+    loc_time = filtered_use_time.loc[df_time['confidenceStill'] > 0.7]
 
     res = None
     for index, row in loc_time.iterrows():
         foreground_time = row['foreground_time']
         background_time = row['background_time']
 
-        (ts_before, ts_target, ts_after) = get_key_timestamps(foreground_time, 60 * 1000, df_analyse,
+        (ts_before, ts_target, ts_after) = get_key_timestamps(foreground_time, test_minutes * 60 * 1000, df_analyse,
                                                               df_key='RRI_Time_ms')
 
         if ts_before > 0 and ts_target > 0 and ts_after > 0:
@@ -52,8 +53,12 @@ def hrv_extraction(p_index):
                 res = res_row
             else:
                 res = pd.concat([res, res_row], ignore_index=True)
-
-    res.to_csv(hrv_output_path + participant_key + '_hrv_result.csv', index=False)
+    if res is not None:
+        res.to_csv(hrv_output_path + participant_key + '_hrv_result.csv', index=False)
+        filtered_use_time.to_csv(hrv_output_path + participant_key + 'time_before_confidence_filter.csv', index=False)
+        loc_time.to_csv(hrv_output_path + participant_key + 'time_after_filter.csv', index=False)
+    else:
+        print(participant_key + ' has no result')
     print(participant_key + ' done')
 
 
@@ -79,7 +84,7 @@ def get_key_timestamps(target, duration_ms, df, df_key='timestamp'):
 
 def process_hrv_async():
     # left one core for me to use my computer...
-    p = Pool(os.cpu_count() - 1)
+    p = Pool()
     for i in range(80):
         p.apply_async(hrv_extraction, args=(i,))
     p.close()
