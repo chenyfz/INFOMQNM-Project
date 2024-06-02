@@ -74,7 +74,7 @@ def eda_extraction(p_index):
     # filter out use time that is less than 1 minute
     filtered_use_time = df_time.loc[df_time.time_difference > minimal_duration_minutes * 60 * 1000]
 
-    loc_time = filtered_use_time.loc[df_time['confidenceStill'] > confidence_still_threshold]
+    loc_time = filtered_use_time.loc[df_time['confidenceStill'] >= confidence_still_threshold]
 
     res = pd.DataFrame(columns=['foreground_time', 'max_amplitude', 'scr_count_per_minute'])
     for index, row in loc_time.iterrows():
@@ -87,7 +87,7 @@ def eda_extraction(p_index):
         if (len(df_analyse)) < 15 * 2:
             continue
 
-        time_diff_minutes = df_analyse.iloc[-1]['timestamp'] - df_analyse.iloc[0]['timestamp'] / 1000 / 60
+        time_diff_minutes = len(df_analyse) / 5 / 60
 
         eda_res, info = neurokit2.eda_process(df_analyse['conductance'], 5, kwargs_phasic='SparsEDA')
 
