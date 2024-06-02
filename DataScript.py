@@ -13,15 +13,6 @@ def calculate_average_confidence(start_time, end_time, activity_df):
     relevant_activities = activity_df[(activity_df['timestamp'] >= start_time) & (activity_df['timestamp'] <= end_time)]
     if not relevant_activities.empty:
         average_confidences = relevant_activities.mean(numeric_only=True).round(4)
-        # print(sum(average_confidences.to_dict().values()))
-        # confidence_sum = sum(current_row[col] for col in confidence_columns)
-        # result = average_confidences.to_dict()
-        # sum = 0
-        # for key in result:
-        #     if key != 'timestamp':
-        #         print('key: ', key, '-', result[key])
-        #         sum += result[key]
-        # print('sum: ', sum)
         return average_confidences.to_dict()
     else:
         return {col: 0.0 for col in activity_df.columns if col != 'timestamp'}
@@ -49,7 +40,7 @@ def process_time(p_index):
         'OFF_timestamp': [off['timestamp'] for unlock, off in pairs]
     })
 
-    pairs_df.to_csv(output_folder + participant_key + '_screen_event_test.csv', index=False)
+    # pairs_df.to_csv(output_folder + participant_key + '_screen_event_test.csv', index=False)
 
     # filter and group app usage
     app_df = pd.read_csv(f'dataset/{participant_key}/AppUsageEvent.csv')
@@ -68,8 +59,8 @@ def process_time(p_index):
     # consider only certain events
     final_filtered_data = filtered_app_usage[
         (filtered_app_usage['type'] != 'USER_INTERACTION') &
-        (filtered_app_usage['category'].isin(['COMMUNICATION', 'SOCIAL'])) &
-        (filtered_app_usage['name'].isin(['Facebook', 'Instagram', '카카오톡']))
+        (filtered_app_usage['category'].isin(['SOCIAL'])) |
+        (filtered_app_usage['name'].isin(['카카오톡', 'Messenger']))
         ]
 
     final_filtered_data = final_filtered_data.reset_index(drop=True)
@@ -195,8 +186,6 @@ def process_time(p_index):
         }
         combined_event.update(average_confidences_combined)
         result.append(combined_event)
-        # temp = sum(current_row[col] for col in confidence_columns)
-        # print('current row ', i, ' - ', temp)
         i = j
 
     result_df = pd.DataFrame(result)
