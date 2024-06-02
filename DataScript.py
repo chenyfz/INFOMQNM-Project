@@ -1,4 +1,8 @@
+import glob
+import os
 from multiprocessing import Pool
+from pathlib import Path
+
 import pandas as pd
 
 output_folder = 'middle-files/'
@@ -144,20 +148,20 @@ def process_time(p_index):
             #print('skip row ', i)
             i += 1
             continue
-        
+
         # the idea is to get the average confidence level based on the existing confidences
         # create a dictionary to store the sums of each type of confidences and the count
         cumulative_confidences = {col: current_row[col] for col in confidence_columns}
-        count = 1 
-        
+        count = 1
+
         # check consecutive rows for the same app and within the same UNLOCK-OFF window
         j = i + 1
         while j < len(time_diff_df):
             next_row = time_diff_df.iloc[j]
-            
+
             # break the loop in case of different app or different time window
-            if (next_row['packageName'] != current_app or 
-                next_row['UNLOCK_timestamp'] != unlock_time or 
+            if (next_row['packageName'] != current_app or
+                next_row['UNLOCK_timestamp'] != unlock_time or
                 next_row['OFF_timestamp'] != off_time):
                 break
 
@@ -168,7 +172,7 @@ def process_time(p_index):
                 #print('skip row ', j)
                 j += 1
                 continue
-            
+
             # the max time difference is set to 30000 milliseconds (30 seconds) to combine app events
             if next_row['foreground_time'] - end_time < 30000:
                 end_time = next_row['background_time']
@@ -178,7 +182,7 @@ def process_time(p_index):
                 j += 1
             else:
                 break
-        
+
         average_confidences_combined = {col: round(cumulative_confidences[col] / count, 4) for col in confidence_columns}
         combined_event = {
             'name': current_row['name'],
@@ -208,4 +212,10 @@ def process_time_async():
     p.join()
 
 if __name__ == '__main__':
+    Path(output_folder).mkdir(parents=True, exist_ok=True)
+
+    files = glob.glob(output_folder + '*')
+    for f in files:
+        os.remove(f)
+
     process_time_async()
