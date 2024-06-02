@@ -25,7 +25,7 @@ def eda_extraction(p_index):
     df_eda['conductance'] = 1 / df_eda['resistance'] * 1000
 
     # potential: transform to z-score?
-    df_eda['conductance'] = stats.zscore(df_eda['conductance'])
+    # df_eda['conductance'] = stats.zscore(df_eda['conductance'])
 
     # filter out use time that is less than 1 minute
     filtered_use_time = df_time.loc[df_time.time_difference > test_minutes * 60 * 1000]
@@ -40,16 +40,19 @@ def eda_extraction(p_index):
 
         df_analyse = df_eda.loc[(df_eda['timestamp'] >= foreground_time) & (df_eda['timestamp'] <= background_time)]
 
+        # df_analyse.to_csv(f'test-middle-files/{participant_key}_{index}_analyse.csv', index=False)
+
         # data is too short to get meaningful result
         if (len(df_analyse)) < 15 * 2:
+            print('df_analyse is too short')
             continue
 
         eda_res, info = eda_process(df_analyse['conductance'], 5, kwargs_phasic='SparsEDA')
 
         res.loc[len(res)] = [
             foreground_time,
-            np.nanmax(info['SCR_Amplitude']),
-            np.count_nonzero(~np.isnan(info['SCR_Amplitude'])) / time_diff_minutes,
+            np.nanmax(eda_res['SCR_Amplitude']),
+            len(info) / time_diff_minutes,
         ]
 
     res.to_csv(eda_output_path + participant_key + '_eda_result.csv', index=False)
