@@ -2,6 +2,7 @@ from multiprocessing import Pool
 import pandas as pd
 
 output_folder = 'middle-files/'
+before_usage_confidence_time = 2 * 60 * 1000
 
 # function to calculate average confidence levels
 def calculate_average_confidence(start_time, end_time, activity_df):
@@ -122,7 +123,7 @@ def process_time(p_index):
 
     for index, row in time_diff_df.iterrows():
         # modify the below line to only consider a set time before and after foreground time
-        average_confidences = calculate_average_confidence(row['foreground_time']-120000, row['foreground_time']+12000, activity_df)
+        average_confidences = calculate_average_confidence(row['foreground_time'] - before_usage_confidence_time, row['background_time'], activity_df)
         for col in confidence_columns:
             time_diff_df.at[index, col] = round(average_confidences.get(col, 0.0), 4)
     # iterate over the app usage events dataframe to combine app usage event and find appropriate activity time

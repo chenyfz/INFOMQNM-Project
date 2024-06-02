@@ -11,12 +11,13 @@ plt.style.use('ggplot')
 
 time_middle_file_path = 'middle-files/'
 eda_output_path = 'eda-middle-data/'
+test_minutes = 2
 
 
 def eda_extraction(p_index):
     participant_key = 'P' + str(p_index + 1).zfill(2)
 
-    df_time = pd.read_csv(f'{time_middle_file_path}{participant_key}_foreground_background_differences.csv')
+    df_time = pd.read_csv(f'{time_middle_file_path}{participant_key}_app_usage_events_with_confidences.csv')
     df_eda = pd.read_csv(f'dataset/{participant_key}/EDA.csv')
     df_eda = df_eda.loc[df_eda['resistance'] != 0]
 
@@ -27,41 +28,32 @@ def eda_extraction(p_index):
     df_eda['conductance'] = stats.zscore(df_eda['conductance'])
 
     # filter out use time that is less than 1 minute
-    loc_time = df_time.loc[df_time.time_difference > 60 * 1000]
+    filtered_use_time = df_time.loc[df_time.time_difference > test_minutes * 60 * 1000]
 
-    res = pd.DataFrame(columns=['foreground_time', 'max_amplitude'])
+    loc_time = filtered_use_time.loc[df_time['confidenceStill'] > 0.7]
+
+    res = pd.DataFrame(columns=['foreground_time', 'max_amplitude', 'scr_count_per_minute'])
     for index, row in loc_time.iterrows():
         foreground_time = row['foreground_time']
         background_time = row['background_time']
+        time_diff_minutes = row['time_difference'] / 1000 / 60
 
-        (ts_target, ts_after) = get_key_timestamps(foreground_time, 60 * 1000, df_eda)
+        df_analyse = df_eda.loc[(df_eda['timestamp'] >= foreground_time) & (df_eda['timestamp'] <= background_time)]
 
-        if ts_target > 0 and ts_after > 0:
-            df_analyse = df_eda.loc[(df_eda['timestamp'] >= ts_target) & (df_eda['timestamp'] <= ts_after)]
+        # data is too short to get meaningful result
+        if (len(df_analyse)) < 15 * 2:
+            continue
 
-            # data is too short to get meaningful result
-            if (len(df_analyse)) < 15 * 2:
-                continue
+        eda_res, info = eda_process(df_analyse['conductance'], 5, kwargs_phasic='SparsEDA')
 
-            eda_res, info = eda_process(df_analyse['conductance'], 5, kwargs_phasic='SparsEDA')
-
-            res.loc[len(res)] = [foreground_time, np.nanmax(info['SCR_Amplitude'])]
+        res.loc[len(res)] = [
+            foreground_time,
+            np.nanmax(info['SCR_Amplitude']),
+            np.count_nonzero(~np.isnan(info['SCR_Amplitude'])) / time_diff_minutes,
+        ]
 
     res.to_csv(eda_output_path + participant_key + '_eda_result.csv', index=False)
     print(participant_key + ' done')
-
-
-def get_key_timestamps(target, duration_ms, df, df_key='timestamp'):
-    target_after = target + duration_ms
-
-    idx_target = df[df_key].searchsorted(target, 'right') - 1
-    idx_after = df[df_key].searchsorted(target_after, 'left')
-
-    timestamp_target = df[df_key].iloc[idx_target] if idx_target >= 0 else 0
-    timestamp_after = df[df_key].iloc[idx_after] if idx_after < len(df) else 0
-
-    return timestamp_target, timestamp_after
-
 
 def process_eda_async():
     # left one core for me to use my computer...

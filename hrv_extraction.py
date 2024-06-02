@@ -27,6 +27,7 @@ def hrv_extraction(p_index):
 
     # filter out use time that is less than 1 minute
     filtered_use_time = df_time.loc[df_time.time_difference > test_minutes * 60 * 1000]
+
     loc_time = filtered_use_time.loc[df_time['confidenceStill'] > 0.7]
 
     res = None
@@ -34,53 +35,31 @@ def hrv_extraction(p_index):
         foreground_time = row['foreground_time']
         background_time = row['background_time']
 
-        (ts_before, ts_target, ts_after) = get_key_timestamps(foreground_time, test_minutes * 60 * 1000, df_analyse,
-                                                              df_key='RRI_Time_ms')
+        df_slice = df_analyse.loc[(df_analyse['RRI_Time_ms'] >= foreground_time) & (df_analyse['RRI_Time_ms'] <= background_time)]
 
-        if ts_before > 0 and ts_target > 0 and ts_after > 0:
-            before_res = neurokit2.hrv_time(
-                df_analyse.loc[(df_analyse['RRI_Time_ms'] >= ts_before) & (df_analyse['RRI_Time_ms'] <= ts_target)]
-            )
+        # there might be no data in RRI.csv, maybe participants didn't wear the band in these cases.
+        # 120: roughly 2 minutes
+        if len(df_slice) < 120:
+            print(participant_key + ' empty slice at foreground time: ' + str(foreground_time))
+            continue
 
-            after_res = neurokit2.hrv_time(
-                df_analyse.loc[(df_analyse['RRI_Time_ms'] > ts_target) & (df_analyse['RRI_Time_ms'] <= ts_after)]
-            )
+        res_row = neurokit2.hrv_time(df_slice)
 
-            res_row = pd.merge(before_res, after_res, suffixes=('_before', '_after'), left_index=True, right_index=True)
-            res_row['foreground_time'] = foreground_time
+        res_row['foreground_time'] = foreground_time
+        res_row['background_time'] = background_time
 
-            if res is None:
-                res = res_row
-            else:
-                res = pd.concat([res, res_row], ignore_index=True)
+        if res is None:
+            res = res_row
+        else:
+            res = pd.concat([res, res_row], ignore_index=True)
+
     if res is not None:
         res.to_csv(hrv_output_path + participant_key + '_hrv_result.csv', index=False)
-        filtered_use_time.to_csv(hrv_output_path + participant_key + 'time_before_confidence_filter.csv', index=False)
-        loc_time.to_csv(hrv_output_path + participant_key + 'time_after_filter.csv', index=False)
+        # filtered_use_time.to_csv(hrv_output_path + participant_key + 'time_before_confidence_filter.csv', index=False)
+        # loc_time.to_csv(hrv_output_path + participant_key + 'time_after_filter.csv', index=False)
     else:
         print(participant_key + ' has no result')
     print(participant_key + ' done')
-
-
-def get_key_timestamps(target, duration_ms, df, df_key='timestamp'):
-    target_before = target - duration_ms
-    target_after = target + duration_ms
-
-    timestamp_before = 0
-    timestamp_target = 0
-    timestamp_after = 0
-
-    # premise: df[df_key] is sorted
-    for df_index, df_row in df.iterrows():
-        if df_row[df_key] <= target_before:
-            timestamp_before = df_row[df_key]
-        elif df_row[df_key] <= target:
-            timestamp_target = df_row[df_key]
-        elif df_row[df_key] >= target_after:
-            timestamp_after = df_row[df_key]
-            break
-    return timestamp_before, timestamp_target, timestamp_after
-
 
 def process_hrv_async():
     # left one core for me to use my computer...
@@ -92,5 +71,5 @@ def process_hrv_async():
 
 
 if __name__ == '__main__':
-    process_hrv_async()
-
+    # process_hrv_async()
+    hrv_extraction(0)
