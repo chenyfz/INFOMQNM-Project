@@ -14,7 +14,7 @@ time_middle_file_path = 'middle-files/'
 hrv_output_path = 'hrv-middle-data/'
 eda_output_path = 'eda-middle-data/'
 minimal_duration_minutes = 2
-confidence_still_threshold = 0.7
+confidence_still_threshold = 0.5
 
 def hrv_extraction(p_index):
     participant_key = 'P' + str(p_index + 1).zfill(2)
