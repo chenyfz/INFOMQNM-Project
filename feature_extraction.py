@@ -14,7 +14,7 @@ time_middle_file_path = 'middle-files/'
 hrv_output_path = 'hrv-middle-data/'
 eda_output_path = 'eda-middle-data/'
 minimal_duration_minutes = 2
-confidence_still_threshold = 0.5
+confidence_active_threshold = 0.25
 
 def hrv_extraction(p_index):
     participant_key = 'P' + str(p_index + 1).zfill(2)
@@ -28,7 +28,8 @@ def hrv_extraction(p_index):
     df_hrv['RRI_Time'] = df_hrv['timestamp'] / 1000
 
     filtered_use_time = df_time.loc[df_time.time_difference > minimal_duration_minutes * 60 * 1000]
-    loc_time = filtered_use_time.loc[df_time['confidenceStill'] >= confidence_still_threshold]
+    loc_time = filtered_use_time.loc[df_time['confidenceOnFoot'] + df_time['confidenceOnBicycle']
+                                     <= confidence_active_threshold]
 
     res = None
     for index, row in loc_time.iterrows():
@@ -68,13 +69,13 @@ def eda_extraction(p_index):
     df_eda = pd.read_csv(f'dataset/{participant_key}/EDA.csv')
     df_eda = df_eda.loc[df_eda['resistance'] != 0]
 
-    # transform from ohm to microsiemens (Note: the original paper said it is kilo-ohm but seems wrong...)
-    df_eda['conductance'] = 1 / df_eda['resistance'] * 1000
+    # transform from ohm to microsiemens
+    df_eda['conductance'] = 1 / df_eda['resistance']
 
     # filter out use time that is less than 1 minute
     filtered_use_time = df_time.loc[df_time.time_difference > minimal_duration_minutes * 60 * 1000]
-
-    loc_time = filtered_use_time.loc[df_time['confidenceStill'] >= confidence_still_threshold]
+    loc_time = filtered_use_time.loc[df_time['confidenceOnFoot'] + df_time['confidenceOnBicycle']
+                                     <= confidence_active_threshold]
 
     res = pd.DataFrame(columns=['foreground_time', 'max_amplitude', 'scr_count_per_minute'])
     for index, row in loc_time.iterrows():

@@ -112,13 +112,15 @@ def process_time(p_index):
     activity_df = pd.read_csv(f'dataset/{participant_key}/ActivityEvent.csv')
 
     # Calculate initial average confidence levels for each app usage event
-    confidence_columns = ['confidenceStill', 'confidenceUnknown', 'confidenceOnFoot', 'confidenceWalking', 'confidenceInVehicle', 'confidenceOnBicycle', 'confidenceRunning', 'confidenceTilting']
+    confidence_columns = ['confidenceStill', 'confidenceUnknown', 'confidenceOnFoot', 'confidenceWalking',
+                          'confidenceInVehicle', 'confidenceOnBicycle', 'confidenceRunning', 'confidenceTilting']
     for col in confidence_columns:
         time_diff_df[col] = 0.0
 
     for index, row in time_diff_df.iterrows():
         # modify the below line to only consider a set time before and after foreground time
-        average_confidences = calculate_average_confidence(row['foreground_time'] - before_usage_confidence_time, row['background_time'], activity_df)
+        average_confidences = calculate_average_confidence(row['foreground_time'] - before_usage_confidence_time,
+                                                           row['background_time'], activity_df)
         for col in confidence_columns:
             time_diff_df.at[index, col] = round(average_confidences.get(col, 0.0), 4)
     # iterate over the app usage events dataframe to combine app usage event and find appropriate activity time
@@ -152,8 +154,8 @@ def process_time(p_index):
 
             # break the loop in case of different app or different time window
             if (next_row['packageName'] != current_app or
-                next_row['UNLOCK_timestamp'] != unlock_time or
-                next_row['OFF_timestamp'] != off_time):
+                    next_row['UNLOCK_timestamp'] != unlock_time or
+                    next_row['OFF_timestamp'] != off_time):
                 break
 
             # check for sum of confidences; skip current row if == 0.0
@@ -174,7 +176,8 @@ def process_time(p_index):
             else:
                 break
 
-        average_confidences_combined = {col: round(cumulative_confidences[col] / count, 4) for col in confidence_columns}
+        average_confidences_combined = {col: round(cumulative_confidences[col] / count, 4) for col in
+                                        confidence_columns}
         combined_event = {
             'name': current_row['name'],
             'packageName': current_app,
@@ -193,12 +196,14 @@ def process_time(p_index):
 
     print(participant_key + ' done')
 
+
 def process_time_async():
     p = Pool()
     for i in range(80):
         p.apply_async(process_time, args=(i,))
     p.close()
     p.join()
+
 
 if __name__ == '__main__':
     Path(output_folder).mkdir(parents=True, exist_ok=True)
