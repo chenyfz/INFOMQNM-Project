@@ -7,6 +7,7 @@ import pandas as pd
 
 output_folder = 'middle-files/'
 before_usage_confidence_time = 2 * 60 * 1000
+package_list = ['com.cashslide', 'com.samsung.dreamclassandroid', 'app.zenly.locator', 'com.towneers.www', 'com.projectm.ezbrother.ssm', 'com.thingsflow.hellobot', 'com.fandom.app']
 
 # function to calculate average confidence levels
 def calculate_average_confidence(start_time, end_time, activity_df):
@@ -59,9 +60,11 @@ def process_time(p_index):
     # consider only certain events
     final_filtered_data = filtered_app_usage[
         (filtered_app_usage['type'] != 'USER_INTERACTION') &
-        (filtered_app_usage['category'].isin(['SOCIAL'])) |
-        (filtered_app_usage['name'].isin(['카카오톡', 'Messenger']))
+        (((filtered_app_usage['category'].isin(['SOCIAL'])) & 
+        ~(filtered_app_usage['packageName'].isin(package_list))) |
+        (filtered_app_usage['name'].isin(['카카오톡', 'Messenger', 'WhatsApp'])))
         ]
+
 
     final_filtered_data = final_filtered_data.reset_index(drop=True)
     # final_filtered_data.to_csv(output_folder + participant_key + '_test_01.csv', index=False)
