@@ -7,6 +7,7 @@ hrv-middle-data
 middle-files
 plots
 eda-middle-data
+analyse_data
 
 # -- from https://github.com/github/gitignore/blob/main/Python.gitignore --
 
