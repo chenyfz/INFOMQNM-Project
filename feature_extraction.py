@@ -70,7 +70,7 @@ def eda_extraction(p_index):
     df_eda = df_eda.loc[df_eda['resistance'] != 0]
 
     # transform from ohm to microsiemens
-    df_eda['conductance'] = 1 / df_eda['resistance']
+    df_eda['conductance'] = 1000 / df_eda['resistance']
 
     # filter out use time that is less than 1 minute
     filtered_use_time = df_time.loc[df_time.time_difference > minimal_duration_minutes * 60 * 1000]
