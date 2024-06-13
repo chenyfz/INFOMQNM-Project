@@ -19,18 +19,24 @@ confidence_active_threshold = 0.25
 def hrv_extraction(p_index):
     participant_key = 'P' + str(p_index + 1).zfill(2)
 
+    # read the results of timeframe_extraction.py
     df_time = pd.read_csv(f'{time_middle_file_path}{participant_key}_app_usage_events_with_confidences.csv')
     df_hrv = pd.read_csv(f'dataset/{participant_key}/RRI.csv')
     df_hrv.sort_values(by='timestamp')
 
+    # column names required by NeuroKit 2
     df_hrv['RRI'] = df_hrv['interval']
     df_hrv['RRI_Time_ms'] = df_hrv['timestamp']
     df_hrv['RRI_Time'] = df_hrv['timestamp'] / 1000
 
+    # filter out timeframes with duration less than the defined one
     filtered_use_time = df_time.loc[df_time.time_difference > minimal_duration_minutes * 60 * 1000]
+
+    # filter out timeframes that participants have confidence level of in active higher than a defined threshold
     loc_time = filtered_use_time.loc[df_time['confidenceOnFoot'] + df_time['confidenceOnBicycle']
                                      <= confidence_active_threshold]
 
+    # feature extraction
     res = None
     for index, row in loc_time.iterrows():
         foreground_time = row['foreground_time']
@@ -39,10 +45,10 @@ def hrv_extraction(p_index):
         df_analyse = df_hrv.loc[
             (df_hrv['timestamp'] >= foreground_time) & (df_hrv['timestamp'] <= background_time)]
 
+        # using smartphone while not wearing MS Band 2
         if len(df_analyse) == 0:
             continue
-
-        # participants maybe not wearing the band in some cases, so check again here.
+        # double check filter: timeframes with duration less than the defined one
         if df_analyse.iloc[-1]['timestamp'] - df_analyse.iloc[0]['timestamp'] < minimal_duration_minutes * 60 * 1000:
             continue
 
@@ -65,15 +71,20 @@ def hrv_extraction(p_index):
 def eda_extraction(p_index):
     participant_key = 'P' + str(p_index + 1).zfill(2)
 
+    # read the results of timeframe_extraction.py
     df_time = pd.read_csv(f'{time_middle_file_path}{participant_key}_app_usage_events_with_confidences.csv')
     df_eda = pd.read_csv(f'dataset/{participant_key}/EDA.csv')
+
+    # resistance will be divided later, a good programmer always check division by zero problem!
     df_eda = df_eda.loc[df_eda['resistance'] != 0]
 
-    # transform from ohm to microsiemens
+    # transform from kilo-ohm to microsiemens
     df_eda['conductance'] = 1000 / df_eda['resistance']
 
-    # filter out use time that is less than 1 minute
+    # filter out timeframes with duration less than the defined one
     filtered_use_time = df_time.loc[df_time.time_difference > minimal_duration_minutes * 60 * 1000]
+
+    # filter out timeframes that participants have confidence level of in active higher than a defined threshold
     loc_time = filtered_use_time.loc[df_time['confidenceOnFoot'] + df_time['confidenceOnBicycle']
                                      <= confidence_active_threshold]
 
@@ -84,10 +95,11 @@ def eda_extraction(p_index):
 
         df_analyse = df_eda.loc[(df_eda['timestamp'] >= foreground_time) & (df_eda['timestamp'] <= background_time)]
 
-        # data is too short to get meaningful result
+        # double check if data is too short to get meaningful result
         if (len(df_analyse)) < 15 * 2:
             continue
 
+        # accurate minute durations based on the row of datas
         time_diff_minutes = len(df_analyse) / 5 / 60
 
         eda_res, info = neurokit2.eda_process(df_analyse['conductance'], 5, kwargs_phasic='SparsEDA')
@@ -106,7 +118,6 @@ def eda_extraction(p_index):
 
 
 def process_hrv_async():
-    # left one core for me to use my computer...
     p = Pool()
     for i in range(80):
         p.apply_async(hrv_extraction, args=(i,))
@@ -115,7 +126,6 @@ def process_hrv_async():
 
 
 def process_eda_async():
-    # left one core for me to use my computer...
     p = Pool(os.cpu_count() - 1)
     for i in range(80):
         p.apply_async(eda_extraction, args=(i,))
